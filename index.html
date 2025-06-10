@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laravel Code Review Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .controls {
+            margin-bottom: 30px;
+        }
+
+        select, button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        select {
+            width: 200px;
+        }
+
+        .btn-copy {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+
+        .btn-reset {
+            background-color: #6c757d;
+            color: white;
+            cursor: pointer;
+        }
+
+        .btn-copy:hover, .btn-reset:hover {
+            opacity: 0.8;
+        }
+
+        .review-item {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: #fafafa;
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .item-text {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .severity {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .severity-high { background-color: #ffe6e6; color: #d32f2f; }
+        .severity-medium { background-color: #fff3cd; color: #856404; }
+        .severity-low { background-color: #d1ecf1; color: #0c5460; }
+
+        .status-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .status-btn {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #ddd;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            background: white;
+        }
+
+        .status-btn.pass { border-color: #28a745; background-color: #d4edda; color: #28a745; }
+        .status-btn.warning { border-color: #ffc107; background-color: #fff3cd; color: #856404; }
+        .status-btn.issue { border-color: #dc3545; background-color: #f8d7da; color: #721c24; }
+
+        .note-area {
+            margin-top: 15px;
+        }
+
+        .note-area textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+
+        .summary h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .summary pre {
+            white-space: pre-wrap;
+            font-family: monospace;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Laravel Code Review Assistant</h1>
+        <p class="subtitle">Quick and thorough Laravel code reviews with consistent feedback</p>
+
+        <div class="controls">
+            <select id="reviewType">
+                <option value="general">General Laravel</option>
+                <option value="controller">Controllers</option>
+                <option value="model">Models & Database</option>
+                <option value="security">Security</option>
+                <option value="testing">Testing</option>
+            </select>
+            <button class="btn-copy" onclick="copyToClipboard()">📋 Copy Summary</button>
+            <button class="btn-reset" onclick="resetReview()">🔄 Reset</button>
+        </div>
+
+        <div id="reviewItems"></div>
+
+        <div id="summary" class="summary hidden">
+            <h3>Review Summary Preview</h3>
+            <pre id="summaryText"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Data
+        const reviewData = {
+            general: {
+                name: 'General Laravel',
+                items: [
+                    { id: 'psr4', text: 'PSR-4 autoloading standards followed', severity: 'medium' },
+                    { id: 'naming', text: 'Naming conventions (PascalCase for classes, camelCase for methods)', severity: 'low' },
+                    { id: 'docblocks', text: 'Proper PHPDoc blocks for classes and methods', severity: 'low' },
+                    { id: 'dependencies', text: 'Dependencies injected via constructor/method injection', severity: 'high' },
+                    { id: 'facades', text: 'Facades used appropriately (not overused)', severity: 'medium' },
+                    { id: 'env', text: 'No hardcoded values (using config/env properly)', severity: 'high' },
+                    { id: 'exceptions', text: 'Proper exception handling and logging', severity: 'high' },
+                    { id: 'validation', text: 'Input validation implemented correctly', severity: 'high' }
+                ]
+            },
+            controller: {
+                name: 'Controllers',
+                items: [
+                    { id: 'single_responsibility', text: 'Single responsibility principle followed', severity: 'medium' },
+                    { id: 'resource_controllers', text: 'Resource controllers used where appropriate', severity: 'low' },
+                    { id: 'form_requests', text: 'Form Request classes for complex validation', severity: 'medium' },
+                    { id: 'response_methods', text: 'Proper response methods (json, view, redirect)', severity: 'medium' },
+                    { id: 'middleware', text: 'Middleware applied correctly', severity: 'medium' },
+                    { id: 'fat_controllers', text: 'Controllers not too fat (business logic in services)', severity: 'high' },
+                    { id: 'return_types', text: 'Consistent return types declared', severity: 'low' }
+                ]
+            },
+            model: {
+                name: 'Models & Database',
+                items: [
+                    { id: 'fillable', text: 'Mass assignment protection ($fillable/$guarded)', severity: 'high' },
+                    { id: 'relationships', text: 'Eloquent relationships defined correctly', severity: 'medium' },
+                    { id: 'scopes', text: 'Query scopes used for reusable queries', severity: 'low' },
+                    { id: 'accessors', text: 'Accessors/mutators used appropriately', severity: 'low' },
+                    { id: 'n_plus_one', text: 'No N+1 query problems (eager loading)', severity: 'high' },
+                    { id: 'migrations', text: 'Migration files properly structured', severity: 'medium' },
+                    { id: 'indexes', text: 'Database indexes on foreign keys and searched columns', severity: 'high' },
+                    { id: 'soft_deletes', text: 'Soft deletes implemented where needed', severity: 'medium' }
+                ]
+            },
+            security: {
+                name: 'Security',
+                items: [
+                    { id: 'csrf', text: 'CSRF protection enabled for forms', severity: 'high' },
+                    { id: 'sql_injection', text: 'No raw SQL without parameter binding', severity: 'high' },
+                    { id: 'xss', text: 'Output properly escaped in Blade templates', severity: 'high' },
+                    { id: 'authorization', text: 'Proper authorization (Gates/Policies)', severity: 'high' },
+                    { id: 'file_uploads', text: 'File upload validation and security', severity: 'high' },
+                    { id: 'rate_limiting', text: 'Rate limiting on sensitive endpoints', severity: 'medium' },
+                    { id: 'https', text: 'HTTPS enforced in production', severity: 'high' }
+                ]
+            },
+            testing: {
+                name: 'Testing',
+                items: [
+                    { id: 'feature_tests', text: 'Feature tests for main user flows', severity: 'medium' },
+                    { id: 'unit_tests', text: 'Unit tests for complex business logic', severity: 'medium' },
+                    { id: 'test_database', text: 'Tests use separate test database', severity: 'high' },
+                    { id: 'factories', text: 'Model factories for test data', severity: 'low' },
+                    { id: 'test_coverage', text: 'Reasonable test coverage for critical paths', severity: 'medium' }
+                ]
+            }
+        };
+
+        // State
+        let checkedItems = {};
+        let notes = {};
+        let currentType = 'general';
+
+        // Initialize
+        document.getElementById('reviewType').addEventListener('change', function() {
+            currentType = this.value;
+            renderItems();
+            updateSummary();
+        });
+
+        function renderItems() {
+            const container = document.getElementById('reviewItems');
+            const items = reviewData[currentType].items;
+            
+            container.innerHTML = '';
+            
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'review-item';
+                div.innerHTML = `
+                    <div class="item-header">
+                        <div>
+                            <div class="item-text">${item.text}</div>
+                            <span class="severity severity-${item.severity}">${item.severity}</span>
+                        </div>
+                        <div class="status-buttons">
+                            <div class="status-btn" onclick="setStatus('${item.id}', 'pass')" id="pass-${item.id}">✓</div>
+                            <div class="status-btn" onclick="setStatus('${item.id}', 'warning')" id="warning-${item.id}">⚠</div>
+                            <div class="status-btn" onclick="setStatus('${item.id}', 'issue')" id="issue-${item.id}">!</div>
+                        </div>
+                    </div>
+                    <div class="note-area hidden" id="note-${item.id}">
+                        <textarea placeholder="Add specific feedback or suggestions..." onchange="setNote('${item.id}', this.value)"></textarea>
+                    </div>
+                `;
+                container.appendChild(div);
+                
+                // Restore state
+                if (checkedItems[item.id]) {
+                    updateStatusDisplay(item.id, checkedItems[item.id]);
+                }
+                if (notes[item.id]) {
+                    const textarea = document.querySelector(`#note-${item.id} textarea`);
+                    textarea.value = notes[item.id];
+                }
+            });
+        }
+
+        function setStatus(itemId, status) {
+            checkedItems[itemId] = status;
+            updateStatusDisplay(itemId, status);
+            updateSummary();
+        }
+
+        function updateStatusDisplay(itemId, status) {
+            // Reset all buttons
+            ['pass', 'warning', 'issue'].forEach(s => {
+                document.getElementById(`${s}-${itemId}`).className = 'status-btn';
+            });
+            
+            // Set active button
+            document.getElementById(`${status}-${itemId}`).className = `status-btn ${status}`;
+            
+            // Show/hide note area
+            const noteArea = document.getElementById(`note-${itemId}`);
+            if (status === 'warning' || status === 'issue') {
+                noteArea.classList.remove('hidden');
+            } else {
+                noteArea.classList.add('hidden');
+            }
+        }
+
+        function setNote(itemId, note) {
+            notes[itemId] = note;
+            updateSummary();
+        }
+
+        function generateSummary() {
+            const items = reviewData[currentType].items;
+            const issues = items.filter(item => checkedItems[item.id] === 'issue');
+            const warnings = items.filter(item => checkedItems[item.id] === 'warning');
+            const passed = items.filter(item => checkedItems[item.id] === 'pass');
+
+            let summary = `## Laravel Code Review Summary - ${reviewData[currentType].name}\n\n`;
+            
+            if (issues.length > 0) {
+                summary += `### 🚨 Issues Found (${issues.length})\n`;
+                issues.forEach(item => {
+                    summary += `- **${item.text}**`;
+                    if (notes[item.id]) summary += `: ${notes[item.id]}`;
+                    summary += '\n';
+                });
+                summary += '\n';
+            }
+
+            if (warnings.length > 0) {
+                summary += `### ⚠️ Improvements Suggested (${warnings.length})\n`;
+                warnings.forEach(item => {
+                    summary += `- **${item.text}**`;
+                    if (notes[item.id]) summary += `: ${notes[item.id]}`;
+                    summary += '\n';
+                });
+                summary += '\n';
+            }
+
+            if (passed.length > 0) {
+                summary += `### ✅ Good Practices Found (${passed.length})\n`;
+                passed.forEach(item => {
+                    summary += `- ${item.text}\n`;
+                });
+            }
+
+            return summary;
+        }
+
+        function updateSummary() {
+            const hasChecked = Object.keys(checkedItems).length > 0;
+            const summaryDiv = document.getElementById('summary');
+            
+            if (hasChecked) {
+                summaryDiv.classList.remove('hidden');
+                document.getElementById('summaryText').textContent = generateSummary();
+            } else {
+                summaryDiv.classList.add('hidden');
+            }
+        }
+
+        function copyToClipboard() {
+            const summary = generateSummary();
+            navigator.clipboard.writeText(summary);
+            alert('Summary copied to clipboard!');
+        }
+
+        function resetReview() {
+            checkedItems = {};
+            notes = {};
+            renderItems();
+            updateSummary();
+        }
+
+        // Initial render
+        renderItems();
+    </script>
+</body>
+</html>
