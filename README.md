@@ -38,7 +38,7 @@ Code reviews are crucial but can be time-consuming and inconsistent. This tool h
 3. Start reviewing code!
 
 ### Option 2: Use Online
-Visit the live version: [Laravel Code Review Assistant](https://your-github-pages-url.github.io/laravel-code-review-assistant/)
+Visit the live version: [Laravel Code Review Assistant](https://techbysameer.github.io/laravel-code-review-assistant/)
 
 ## 📖 How to Use
 
